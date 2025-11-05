@@ -8,6 +8,9 @@ const input = document.getElementById("file-input");
 // Creamos una instancia del visor
 const viewer = new IfcViewerAPI({ container });
 
+// Le indicamos al visor dónde encontrar los archivos WASM necesarios
+viewer.IFC.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.55/");
+
 // Creamos una grilla y ejes para tener una referencia visual
 viewer.grid.setGrid();
 viewer.axes.setAxes();
