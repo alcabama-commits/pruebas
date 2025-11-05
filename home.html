@@ -28,6 +28,12 @@
     <h1>Mi Visor de Modelos IFC</h1>
     <p>Este es un visor incrustado en la página que carga un modelo IFC de ejemplo automáticamente.</p>
 
+    <!-- Añadimos de nuevo la opción para cargar un archivo local -->
+    <div>
+        <label for="file-input">O carga tu propio modelo IFC:</label>
+        <input type="file" id="file-input" accept=".ifc, .ifcXML, .ifcZIP" style="margin-top: 10px;">
+    </div>
+
     <div id="viewer-container"></div>
 
     <!-- Importamos la librería web-ifc-viewer -->

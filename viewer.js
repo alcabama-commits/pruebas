@@ -30,3 +30,23 @@ const sampleUrl = 'https://raw.githubusercontent.com/openBIMstandards/DataSetSch
 
 // Llamamos a la función para cargar el modelo
 loadIfcFromUrl(sampleUrl);
+
+// --- CÓDIGO AÑADIDO PARA CARGA LOCAL ---
+
+// Obtenemos la referencia al input para cargar archivos locales
+const input = document.getElementById('file-input');
+
+// Configuramos el evento para cargar un archivo local cuando el usuario elija uno
+input.addEventListener(
+  'change',
+  async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Creamos una URL para el archivo local
+    const url = URL.createObjectURL(file);
+
+    // Cargamos el nuevo modelo (esto reemplazará al anterior)
+    await loadIfcFromUrl(url);
+  }
+);
