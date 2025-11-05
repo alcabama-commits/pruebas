@@ -1,6 +1,50 @@
-//prueba uno uno
-#prueba de arranque {
-    background-color: lightblue;
-    font-size: 20px;
-    padding: 10px;
-}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor IFC</title>
+    <style>
+        /* Estilos básicos para que el visor ocupe toda la pantalla */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Evita barras de scroll */
+        }
+
+        #viewer-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #file-input {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10; /* Asegura que esté por encima del visor */
+        }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="file-input" accept=".ifc, .ifcXML, .ifcZIP">
+    <div id="viewer-container"></div>
+
+    <!-- Importamos la librería web-ifc-viewer -->
+    <!-- NOTA: Usamos un 'importmap' para facilitar la importación en nuestro script -->
+    <script type="importmap">
+        {
+            "imports": {
+                "web-ifc-viewer": "https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.0.216/dist/web-ifc-viewer.es.js"
+            }
+        }
+    </script>
+
+    <!-- Nuestro script para controlar el visor -->
+    <script type="module" src="./viewer.js"></script>
+
+</body>
+</html>
