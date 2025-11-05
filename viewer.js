@@ -25,8 +25,8 @@ async function loadIfcFromUrl(url) {
   await viewer.shadowDropper.renderShadow(model.modelID);
 }
 
-// URL del modelo de ejemplo. [1]
-const sampleUrl = 'https://raw.githubusercontent.com/openBIMstandards/DataSetSchependomlaan/main/IFC%20Schependomlaan.ifc';
+// URL del modelo de ejemplo (usando una CDN más estable)
+const sampleUrl = 'https://cdn.jsdelivr.net/gh/openBIMstandards/DataSetSchependomlaan/IFC%20Schependomlaan.ifc';
 
 // Llamamos a la función para cargar el modelo
 loadIfcFromUrl(sampleUrl);
