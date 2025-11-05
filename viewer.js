@@ -12,7 +12,7 @@ const viewer = new IfcViewerAPI({
 });
 
 // Le indicamos al visor dónde encontrar los archivos WASM necesarios
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.55/');
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.58/');
 
 // Creamos una grilla y ejes para tener una referencia visual
 viewer.grid.setGrid();
