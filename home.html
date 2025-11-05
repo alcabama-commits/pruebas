@@ -6,31 +6,28 @@
     <title>Visor IFC</title>
     <style>
         /* Estilos básicos para que el visor ocupe toda la pantalla */
-        html, body {
+        body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden; /* Evita barras de scroll */
+            font-family: sans-serif;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         #viewer-container {
             position: relative;
-            width: 100%;
-            height: 100%;
-        }
-
-        #file-input {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 10; /* Asegura que esté por encima del visor */
+            width: 80vw; /* 80% del ancho de la ventana */
+            height: 70vh; /* 70% de la altura de la ventana */
+            border: 1px solid #ccc;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
 
-    <input type="file" id="file-input" accept=".ifc, .ifcXML, .ifcZIP">
+    <h1>Mi Visor de Modelos IFC</h1>
+    <p>Este es un visor incrustado en la página que carga un modelo IFC de ejemplo automáticamente.</p>
+
     <div id="viewer-container"></div>
 
     <!-- Importamos la librería web-ifc-viewer -->
@@ -38,7 +35,9 @@
     <script type="importmap">
         {
             "imports": {
-                "web-ifc-viewer": "https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.0.216/dist/web-ifc-viewer.es.js"
+                "web-ifc-viewer": "https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.0.216/dist/web-ifc-viewer.es.js",
+                "three": "https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js",
+                "three/examples/jsm/libs/stats.module.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/libs/stats.module.js"
             }
         }
     </script>
