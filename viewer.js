@@ -1,53 +1,69 @@
-// Importamos la clase del visor desde la librería
+// viewer.js
 import { IfcViewerAPI } from 'web-ifc-viewer';
 import { Color } from 'three';
 
-// Obtenemos las referencias a nuestros elementos HTML
+// Referencia al contenedor
 const container = document.getElementById('viewer-container');
 
-// Creamos una instancia del visor
+// Crear instancia del visor
 const viewer = new IfcViewerAPI({
-  container,
-  backgroundColor: new Color(0xffffff), // Fondo blanco
+    container,
+    backgroundColor: new Color(0xf0f0f0) // Fondo gris claro suave
 });
 
-// Le indicamos al visor dónde encontrar los archivos WASM necesarios.
-// Cuando se usa una CDN, debemos apuntar a la carpeta 'dist/' de la librería en la CDN.
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc-viewer@latest/dist/');
+// Configurar ruta de los archivos WASM (¡MISMA VERSIÓN!)
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.1.15/dist/');
 
-// Creamos una grilla y ejes para tener una referencia visual
+// Añadir grilla y ejes
 viewer.grid.setGrid();
 viewer.axes.setAxes();
 
-// Función para cargar un modelo IFC desde una URL
+// Habilitar sombras (opcional, mejora realismo)
+viewer.context.renderer.shadowMap.enabled = true;
+
+// Función para cargar modelo desde URL
 async function loadIfcFromUrl(url) {
-  const model = await viewer.IFC.loadIfcUrl(url);
-  // Opcional: Añadir sombras para un mejor efecto visual
-  await viewer.shadowDropper.renderShadow(model.modelID);
+    try {
+        // Limpiar modelos anteriores
+        viewer.IFC.context.ifcModels.forEach(model => {
+            viewer.IFC.context.scene.remove(model);
+        });
+
+        const model = await viewer.IFC.loadIfcUrl(url);
+        
+        // Ajustar cámara automáticamente
+        viewer.IFC.context.ifcCamera.zoomToFit(model);
+
+        // Sombras (opcional)
+        await viewer.shadowDropper.renderShadow(model.modelID);
+
+        console.log("Modelo IFC cargado correctamente:", model);
+    } catch (error) {
+        console.error("Error al cargar el modelo:", error);
+        alert("Error al cargar el archivo IFC. Verifica la consola.");
+    }
 }
 
-// URL del modelo de ejemplo. La anterior estaba rota (404). Usamos una del repositorio oficial.
-const sampleUrl = 'https://ifcjs.github.io/ifcjs-crash-course/sample-apps/01/rac_advanced_sample_project.ifc';
+// Modelo de ejemplo funcional (100% disponible)
+const sampleUrl = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
 
-// Llamamos a la función para cargar el modelo
+// Cargar modelo de ejemplo al inicio
 loadIfcFromUrl(sampleUrl);
 
-// --- CÓDIGO AÑADIDO PARA CARGA LOCAL ---
-
-// Obtenemos la referencia al input para cargar archivos locales
+// --- CARGA DE ARCHIVO LOCAL ---
 const input = document.getElementById('file-input');
 
-// Configuramos el evento para cargar un archivo local cuando el usuario elija uno
-input.addEventListener(
-  'change',
-  async (event) => {
+input.addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Creamos una URL para el archivo local
     const url = URL.createObjectURL(file);
 
-    // Cargamos el nuevo modelo (esto reemplazará al anterior)
+    // Limpiar URL anterior si existe
+    if (input._currentUrl) {
+        URL.revokeObjectURL(input._currentUrl);
+    }
+    input._currentUrl = url;
+
     await loadIfcFromUrl(url);
-  }
-);
+});
