@@ -342,9 +342,11 @@
             await viewer.load(currentUrl);
         });
 
-        // Mensaje inicial
-        loadingText.textContent = 'Listo. Sube tu archivo IFC.';
-        fitButton.disabled = true;
+        // --- Carga automática del modelo local ---
+        const modelUrl = './19_ZI_ALL_Estructura_Torre_Parqueaderos.ifc';
+        viewer.load(modelUrl);
+        // --- Fin de la carga automática ---
     </script>
+
 </body>
 </html>
