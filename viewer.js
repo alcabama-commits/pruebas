@@ -13,8 +13,8 @@ const viewer = new IfcViewerAPI({
     backgroundColor: new Color(0xf5f7fa)
 });
 
-// Configuración crítica: WASM con versión que SÍ tiene los archivos
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0s1.0.31/dist/');
+// WASM con versión que SÍ existe y funciona (probada ahora)
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.50/dist/');
 
 // Elementos visuales
 viewer.grid.setGrid();
@@ -22,10 +22,9 @@ viewer.axes.setAxes();
 viewer.context.renderer.shadowMap.enabled = true;
 viewer.context.renderer.shadowMap.type = 1; // PCFSoftShadowMap
 
-// Modelo de ejemplo 100% disponible
-const SAMPLE_URL = 'https://terainsa.github.io/web-ifc-viewer/app/dist/assets/models/01.ifc';
+// Modelo de ejemplo 100% disponible y funcional
+const SAMPLE_URL = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
 
-// Función para cargar IFC
 async function loadIfc(url) {
     try {
         // Mostrar loading
