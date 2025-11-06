@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visor IFC 3D</title>
-    <!-- Evita error 404 del favicon -->
     <link rel="icon" href="data:,">
     <style>
         * { box-sizing: border-box; }
@@ -113,15 +112,14 @@
         <div class="loading">Cargando modelo 3D... (Espera 5-10 segundos)</div>
     </div>
 
-    <!-- Carga directa de Three.js y web-ifc (UMD, global) -->
+    <!-- Carga global de Three.js y web-ifc (UMD) -->
     <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/web-ifc-api.js"></script>
 
-    <!-- Implementación completa de IfcViewerAPI en el mismo archivo -->
+    <!-- Todo el visor en un solo script type="module" -->
     <script type="module">
-        // Hacer THREE y WebIFC disponibles globalmente
-        const THREE = window.THREE;
         const { WebIFC } = window;
+        const THREE = window.THREE;
 
         class IfcViewerAPI {
             constructor({ container, backgroundColor }) {
@@ -129,66 +127,71 @@
                 this.backgroundColor = backgroundColor || new THREE.Color(0xf5f7fa);
                 this.ifc = new WebIFC.IfcAPI();
                 this.ifc.SetWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/');
-                this.context = {
-                    scene: new THREE.Scene(),
-                    camera: new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000),
-                    renderer: new THREE.WebGLRenderer({ antialias: true }),
-                    ifcModels: []
-                };
-                this.context.scene.background = this.backgroundColor;
-                this.context.camera.position.set(10, 10, 10);
-                this.context.renderer.setSize(container.clientWidth, container.clientHeight);
-                this.context.renderer.shadowMap.enabled = true;
-                this.context.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                container.appendChild(this.context.renderer.domElement);
 
-                // Controles
-                const controls = new THREE.OrbitControls(this.context.camera, this.context.renderer.domElement);
+                this.scene = new THREE.Scene();
+                this.scene.background = this.backgroundColor;
+
+                this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                this.camera.position.set(10, 10, 10);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                container.appendChild(this.renderer.domElement);
+
+                const controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
                 controls.enableDamping = true;
 
-                // Animación
                 const animate = () => {
                     requestAnimationFrame(animate);
                     controls.update();
-                    this.context.renderer.render(this.context.scene, this.context.camera);
+                    this.renderer.render(this.scene, this.camera);
                 };
                 animate();
 
-                // Grilla y ejes
-                this.grid = { setGrid: () => {
-                    const grid = new THREE.GridHelper(50, 50, 0x888888, 0x444444);
-                    this.context.scene.add(grid);
-                }};
-                this.axes = { setAxes: () => {
-                    const axes = new THREE.AxesHelper(10);
-                    this.context.scene.add(axes);
-                }};
+                this.grid = {
+                    setGrid: () => {
+                        const grid = new THREE.GridHelper(50, 50, 0x888888, 0x444444);
+                        this.scene.add(grid);
+                    }
+                };
 
-                // Cargar IFC
+                this.axes = {
+                    setAxes: () => {
+                        const axes = new THREE.AxesHelper(10);
+                        this.scene.add(axes);
+                    }
+                };
+
                 this.IFC = {
+                    context: { scene: this.scene, ifcModels: [] },
                     loadIfcUrl: async (url) => {
+                        await this.ifc.Init();
                         const response = await fetch(url);
                         const arrayBuffer = await response.arrayBuffer();
-                        await this.ifc.Init();
                         const modelID = this.ifc.OpenModel(new Uint8Array(arrayBuffer));
-                        const coords = this.ifc.GetCoordinates(modelID);
-                        const expressIDs = this.ifc.GetExpressIds(modelID);
-                        const geometry = new THREE.BufferGeometry();
-                        const positions = [];
-                        for (let i = 0; i < coords.length; i += 3) {
-                            positions.push(coords[i], coords[i + 1], coords[i + 2]);
-                        }
-                        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-                        const material = new THREE.MeshLambertMaterial({ color: 0x6699ff });
-                        const mesh = new THREE.Mesh(geometry, material);
+                        const geometry = this.ifc.GetGeometry(modelID, 0); // simplificado
+                        if (!geometry) throw new Error("No geometry");
+
+                        const positions = geometry.GetVertexData();
+                        const indices = geometry.GetIndexData();
+
+                        const geom = new THREE.BufferGeometry();
+                        geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                        geom.setIndex(Array.from(indices));
+                        geom.computeVertexNormals();
+
+                        const material = new THREE.MeshLambertMaterial({ color: 0x6699ff, side: THREE.DoubleSide });
+                        const mesh = new THREE.Mesh(geom, material);
                         mesh.castShadow = true;
                         mesh.receiveShadow = true;
-                        this.context.scene.add(mesh);
-                        this.context.ifcModels.push({ modelID, mesh });
+                        this.scene.add(mesh);
+                        this.IFC.context.ifcModels.push({ modelID, mesh });
+
                         this.zoomToFit(mesh);
                         return { modelID, mesh };
-                    },
-                    context: this.context
+                    }
                 };
 
                 this.zoomToFit = (obj) => {
@@ -196,26 +199,62 @@
                     const center = box.getCenter(new THREE.Vector3());
                     const size = box.getSize(new THREE.Vector3());
                     const maxDim = Math.max(size.x, size.y, size.z);
-                    const fov = this.context.camera.fov * (Math.PI / 180);
+                    const fov = this.camera.fov * (Math.PI / 180);
                     let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2));
                     cameraZ *= 1.5;
-                    this.context.camera.position.z = cameraZ;
-                    const direction = new THREE.Vector3().subVectors(center, this.context.camera.position).normalize();
-                    this.context.camera.position.copy(center).add(direction.multiplyScalar(cameraZ));
-                    this.context.camera.lookAt(center);
+                    this.camera.position.copy(center).add(new THREE.Vector3(cameraZ, cameraZ, cameraZ).normalize().multiplyScalar(cameraZ));
+                    this.camera.lookAt(center);
                     controls.target.copy(center);
                 };
 
-                // Sombras (simplificado)
                 this.shadowDropper = { renderShadow: async () => {} };
             }
         }
 
-        // Exponer globalmente
-        window.IfcViewerAPI = IfcViewerAPI;
-    </script>
+        // Instancia global
+        const container = document.getElementById('viewer-container');
+        const input = document.getElementById('file-input');
+        const loadingText = container.querySelector('.loading');
 
-    <!-- Tu script -->
-    <script type="module" src="viewer.js"></script>
+        const viewer = new IfcViewerAPI({
+            container,
+            backgroundColor: new THREE.Color(0xf5f7fa)
+        });
+
+        viewer.grid.setGrid();
+        viewer.axes.setAxes();
+
+        const SAMPLE_URL = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
+
+        async function loadIfc(url) {
+            try {
+                loadingText.style.display = 'block';
+                loadingText.textContent = 'Cargando...';
+                loadingText.style.color = '#1a3d7c';
+
+                viewer.IFC.context.ifcModels.forEach(m => m.mesh && viewer.scene.remove(m.mesh));
+                viewer.IFC.context.ifcModels = [];
+
+                await viewer.IFC.loadIfcUrl(url);
+
+                loadingText.style.display = 'none';
+            } catch (err) {
+                console.error(err);
+                loadingText.textContent = 'Error: archivo no válido';
+                loadingText.style.color = '#e74c3c';
+            }
+        }
+
+        loadIfc(SAMPLE_URL);
+
+        let currentUrl = null;
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (currentUrl) URL.revokeObjectURL(currentUrl);
+            currentUrl = URL.createObjectURL(file);
+            loadIfc(currentUrl);
+        });
+    </script>
 </body>
 </html>
