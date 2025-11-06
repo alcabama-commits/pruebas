@@ -112,20 +112,29 @@
         <div class="loading">Cargando modelo 3D... (Espera 5-10 segundos)</div>
     </div>
 
-    <!-- Carga global de Three.js y web-ifc (UMD) -->
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/web-ifc-api.js"></script>
+    <!-- Carga de Three.js como módulo -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+    </script>
 
-    <!-- Todo el visor en un solo script type="module" -->
+    <!-- Todo el código en un solo módulo -->
     <script type="module">
-        const { WebIFC } = window;
-        const THREE = window.THREE;
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Cargar web-ifc como módulo (versión con ES module)
+        const { IfcAPI } = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/web-ifc-api.js');
 
         class IfcViewerAPI {
             constructor({ container, backgroundColor }) {
                 this.container = container;
                 this.backgroundColor = backgroundColor || new THREE.Color(0xf5f7fa);
-                this.ifc = new WebIFC.IfcAPI();
+                this.ifc = new IfcAPI();
                 this.ifc.SetWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/');
 
                 this.scene = new THREE.Scene();
@@ -140,7 +149,7 @@
                 this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 container.appendChild(this.renderer.domElement);
 
-                const controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                const controls = new OrbitControls(this.camera, this.renderer.domElement);
                 controls.enableDamping = true;
 
                 const animate = () => {
@@ -171,27 +180,40 @@
                         const response = await fetch(url);
                         const arrayBuffer = await response.arrayBuffer();
                         const modelID = this.ifc.OpenModel(new Uint8Array(arrayBuffer));
-                        const geometry = this.ifc.GetGeometry(modelID, 0); // simplificado
-                        if (!geometry) throw new Error("No geometry");
-
-                        const positions = geometry.GetVertexData();
-                        const indices = geometry.GetIndexData();
-
-                        const geom = new THREE.BufferGeometry();
-                        geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-                        geom.setIndex(Array.from(indices));
-                        geom.computeVertexNormals();
-
-                        const material = new THREE.MeshLambertMaterial({ color: 0x6699ff, side: THREE.DoubleSide });
-                        const mesh = new THREE.Mesh(geom, material);
-                        mesh.castShadow = true;
-                        mesh.receiveShadow = true;
+                        const mesh = await this.createMesh(modelID);
                         this.scene.add(mesh);
                         this.IFC.context.ifcModels.push({ modelID, mesh });
-
                         this.zoomToFit(mesh);
                         return { modelID, mesh };
                     }
+                };
+
+                this.createMesh = async (modelID) => {
+                    const ids = this.ifc.GetAllItems(modelID);
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = [];
+                    const indices = [];
+
+                    for (const id of ids) {
+                        const geom = this.ifc.GetGeometry(modelID, id);
+                        if (!geom) continue;
+                        const vertexData = geom.GetVertexData();
+                        const indexData = geom.GetIndexData();
+                        const baseIndex = positions.length / 3;
+                        for (let i = 0; i < vertexData.length; i += 3) {
+                            positions.push(vertexData[i], vertexData[i + 1], vertexData[i + 2]);
+                        }
+                        for (let i = 0; i < indexData.length; i++) {
+                            indices.push(indexData[i] + baseIndex);
+                        }
+                    }
+
+                    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                    geometry.setIndex(indices);
+                    geometry.computeVertexNormals();
+
+                    const material = new THREE.MeshLambertMaterial({ color: 0x6699ff, side: THREE.DoubleSide });
+                    return new THREE.Mesh(geometry, material);
                 };
 
                 this.zoomToFit = (obj) => {
@@ -211,7 +233,7 @@
             }
         }
 
-        // Instancia global
+        // Inicialización
         const container = document.getElementById('viewer-container');
         const input = document.getElementById('file-input');
         const loadingText = container.querySelector('.loading');
