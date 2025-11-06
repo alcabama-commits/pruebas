@@ -85,6 +85,12 @@
             font-size: 1.2em;
             color: #1a3d7c;
             font-weight: 600;
+            z-index: 10;
+            background: rgba(255,255,255,0.9);
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         @media (max-width: 768px) {
             #viewer-container {
@@ -97,24 +103,21 @@
     </style>
 </head>
 <body>
-
     <h1>Visor IFC 3D Interactivo</h1>
     <p>Se carga un modelo de ejemplo automáticamente. También puedes subir tu propio archivo IFC.</p>
-
     <div class="file-upload">
         <label for="file-input">Sube tu modelo IFC (.ifc, .ifcZIP, .ifcXML)</label>
         <input type="file" id="file-input" accept=".ifc,.ifcZIP,.ifcXML">
     </div>
-
     <div id="viewer-container">
-        <div class="loading">Cargando modelo 3D...</div>
+        <div class="loading">Cargando modelo 3D... (Espera 5-10 segundos)</div>
     </div>
 
-    <!-- Importmap con versiones estables -->
+    <!-- Importmap con versión estable y funcional -->
     <script type="importmap">
     {
       "imports": {
-        "web-ifc-viewer": "https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.1.15/dist/web-ifc-viewer.es.js",
+        "web-ifc-viewer": "https://cdn.jsdelivr.net/npm/web-ifc-viewer@0s1.1.3/dist/web-ifc-viewer.es.js",
         "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
         "three/examples/jsm/libs/stats.module.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/stats.module.js",
         "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
@@ -122,8 +125,7 @@
     }
     </script>
 
-    <!-- Ruta ABSOLUTA para GitHub Pages -->
-    <script type="module" src="/pruebas/viewer.js"></script>
-
+    <!-- Ruta relativa (funciona en GitHub Pages) -->
+    <script type="module" src="viewer.js"></script>
 </body>
 </html>
