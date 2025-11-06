@@ -1,69 +1,67 @@
-// viewer.js
+// viewer.js - Visor IFC funcional y robusto
 import { IfcViewerAPI } from 'web-ifc-viewer';
 import { Color } from 'three';
 
-// Referencia al contenedor
+// Elementos del DOM
 const container = document.getElementById('viewer-container');
+const input = document.getElementById('file-input');
 
-// Crear instancia del visor
+// Instancia del visor
 const viewer = new IfcViewerAPI({
     container,
-    backgroundColor: new Color(0xf0f0f0) // Fondo gris claro suave
+    backgroundColor: new Color(0xf5f7fa)
 });
 
-// Configurar ruta de los archivos WASM (¡MISMA VERSIÓN!)
+// Configuración esencial
 viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.1.15/dist/');
-
-// Añadir grilla y ejes
 viewer.grid.setGrid();
 viewer.axes.setAxes();
 
-// Habilitar sombras (opcional, mejora realismo)
+// Habilitar sombras
 viewer.context.renderer.shadowMap.enabled = true;
+viewer.context.renderer.shadowMap.type = 1; // PCFSoftShadowMap
 
-// Función para cargar modelo desde URL
-async function loadIfcFromUrl(url) {
+// Modelo de ejemplo confiable
+const SAMPLE_MODEL_URL = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
+
+// Cargar modelo desde URL
+async function loadIfc(url) {
     try {
-        // Limpiar modelos anteriores
+        // Limpiar escena anterior
         viewer.IFC.context.ifcModels.forEach(model => {
-            viewer.IFC.context.scene.remove(model);
+            viewer.IFC.context.scene.remove(model.mesh);
         });
 
-        const model = await viewer.IFC.loadIfcUrl(url);
+        const model = await viewer.IFC.loadIfcUrl(url, true);
         
-        // Ajustar cámara automáticamente
+        // Ajustar cámara al modelo
         viewer.IFC.context.ifcCamera.zoomToFit(model);
 
-        // Sombras (opcional)
+        // Aplicar sombras
         await viewer.shadowDropper.renderShadow(model.modelID);
 
-        console.log("Modelo IFC cargado correctamente:", model);
-    } catch (error) {
-        console.error("Error al cargar el modelo:", error);
-        alert("Error al cargar el archivo IFC. Verifica la consola.");
+        console.log('Modelo cargado:', model);
+    } catch (err) {
+        console.error('Error al cargar IFC:', err);
+        alert('No se pudo cargar el modelo. Verifica que el archivo sea válido (.ifc).');
     }
 }
 
-// Modelo de ejemplo funcional (100% disponible)
-const sampleUrl = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
-
 // Cargar modelo de ejemplo al inicio
-loadIfcFromUrl(sampleUrl);
+loadIfc(SAMPLE_MODEL_URL);
 
-// --- CARGA DE ARCHIVO LOCAL ---
-const input = document.getElementById('file-input');
+// Carga de archivo local
+let currentObjectUrl = null;
 
-input.addEventListener('change', async (event) => {
-    const file = event.target.files[0];
+input.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
     if (!file) return;
 
-    const url = URL.createObjectURL(file);
-
-    // Limpiar URL anterior si existe
-    if (input._currentUrl) {
-        URL.revokeObjectURL(input._currentUrl);
+    // Revocar URL anterior
+    if (currentObjectUrl) {
+        URL.revokeObjectURL(currentObjectUrl);
     }
-    input._currentUrl = url;
 
-    await loadIfcFromUrl(url);
+    currentObjectUrl = URL.createObjectURL(file);
+    await loadIfc(currentObjectUrl);
 });
