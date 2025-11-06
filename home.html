@@ -1,53 +1,56 @@
-// Importamos la clase del visor desde la librería
-import { IfcViewerAPI } from 'web-ifc-viewer';
-import { Color } from 'three';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor IFC</title>
+    <style>
+        /* Estilos básicos para que el visor ocupe toda la pantalla */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+            padding: 20px;
+            box-sizing: border-box;
+        }
 
-// Obtenemos las referencias a nuestros elementos HTML
-const container = document.getElementById('viewer-container');
+        #viewer-container {
+            position: relative;
+            width: 80vw; /* 80% del ancho de la ventana */
+            height: 70vh; /* 70% de la altura de la ventana */
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
 
-// Creamos una instancia del visor
-const viewer = new IfcViewerAPI({
-  container,
-  backgroundColor: new Color(0xffffff), // Fondo blanco
-});
+    <h1>Mi Visor de Modelos IFC</h1>
+    <p>Este es un visor incrustado en la página que carga un modelo IFC de ejemplo automáticamente.</p>
 
-// Le indicamos al visor dónde encontrar los archivos WASM necesarios.
-// Cuando se usa una CDN, debemos apuntar a la carpeta 'dist/' de la librería en la CDN.
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.0.217/dist/');
+    <!-- Añadimos de nuevo la opción para cargar un archivo local -->
+    <div>
+        <label for="file-input">O carga tu propio modelo IFC:</label>
+        <input type="file" id="file-input" accept=".ifc, .ifcXML, .ifcZIP" style="margin-top: 10px;">
+    </div>
 
-// Creamos una grilla y ejes para tener una referencia visual
-viewer.grid.setGrid();
-viewer.axes.setAxes();
+    <div id="viewer-container"></div>
 
-// Función para cargar un modelo IFC desde una URL
-async function loadIfcFromUrl(url) {
-  const model = await viewer.IFC.loadIfcUrl(url);
-  // Opcional: Añadir sombras para un mejor efecto visual
-  await viewer.shadowDropper.renderShadow(model.modelID);
-}
+    <!-- Importamos la librería web-ifc-viewer -->
+    <!-- NOTA: Usamos un 'importmap' para facilitar la importación en nuestro script -->
+    <script type="importmap">
+        {
+            "imports": {
+                "web-ifc-viewer": "https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.0.217/dist/web-ifc-viewer.es.js",
+                "three": "https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js",
+                "three/examples/jsm/libs/stats.module.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/libs/stats.module.js",
+                "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/loaders/GLTFLoader.js"
+            }
+        }
+    </script>
 
-// URL del modelo de ejemplo. La anterior estaba rota (404). Usamos una del repositorio oficial.
-const sampleUrl = 'https://ifcjs.github.io/ifcjs-crash-course/sample-apps/01/rac_advanced_sample_project.ifc';
+    <!-- Nuestro script para controlar el visor -->
+    <script type="module" src="./viewer.js"></script>
 
-// Llamamos a la función para cargar el modelo
-loadIfcFromUrl(sampleUrl);
-
-// --- CÓDIGO AÑADIDO PARA CARGA LOCAL ---
-
-// Obtenemos la referencia al input para cargar archivos locales
-const input = document.getElementById('file-input');
-
-// Configuramos el evento para cargar un archivo local cuando el usuario elija uno
-input.addEventListener(
-  'change',
-  async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Creamos una URL para el archivo local
-    const url = URL.createObjectURL(file);
-
-    // Cargamos el nuevo modelo (esto reemplazará al anterior)
-    await loadIfcFromUrl(url);
-  }
-);
+</body>
+</html>
