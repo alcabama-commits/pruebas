@@ -1,28 +1,26 @@
-// viewer.js - Versión completa, estable y sin errores 404
-import { IfcViewerAPI } from 'web-ifc-viewer';
-import { Color } from 'three';
+// viewer.js - Adaptado del ejemplo oficial para evitar 404 en CDN
+// Nota: Usamos las variables globales de la carga de scripts (IfcViewerAPI, THREE, WebIFC)
 
-// Elementos del DOM
 const container = document.getElementById('viewer-container');
 const input = document.getElementById('file-input');
 const loadingText = container.querySelector('.loading');
 
-// Instancia del visor
+// Instancia del visor (disponible globalmente después de cargar el script)
 const viewer = new IfcViewerAPI({
     container,
-    backgroundColor: new Color(0xf5f7fa)
+    backgroundColor: new THREE.Color(0xf5f7fa)
 });
 
-// WASM con versión compatible (0.0.70, la más reciente)
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.70/dist/');
+// Configuración del WASM (ruta global de web-ifc)
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.57/');
 
 // Elementos visuales
 viewer.grid.setGrid();
 viewer.axes.setAxes();
 viewer.context.renderer.shadowMap.enabled = true;
-viewer.context.renderer.shadowMap.type = 1; // PCFSoftShadowMap
+viewer.context.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-// Modelo de ejemplo 100% disponible
+// Modelo de ejemplo oficial (siempre disponible)
 const SAMPLE_URL = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
 
 async function loadIfc(url) {
@@ -33,11 +31,13 @@ async function loadIfc(url) {
         loadingText.style.color = '#1a3d7c';
 
         // Limpiar modelos anteriores
-        viewer.IFC.context.ifcModels.forEach(model => {
+        const models = viewer.IFC.context.ifcModels;
+        models.forEach(model => {
             if (model && model.mesh) {
                 viewer.IFC.context.scene.remove(model.mesh);
             }
         });
+        models.length = 0;
 
         // Cargar el modelo
         const model = await viewer.IFC.loadIfcUrl(url, true);
