@@ -11,8 +11,9 @@ const viewer = new IfcViewerAPI({
   backgroundColor: new Color(0xffffff), // Fondo blanco
 });
 
-// Le indicamos al visor dónde encontrar los archivos WASM necesarios
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.58/');
+// Le indicamos al visor dónde encontrar los archivos WASM necesarios.
+// Cuando se usa una CDN, debemos apuntar a la carpeta 'dist/' de la librería en la CDN.
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.0.217/dist/');
 
 // Creamos una grilla y ejes para tener una referencia visual
 viewer.grid.setGrid();
