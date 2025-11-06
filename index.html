@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=.0">
     <title>Visor IFC 3D</title>
     <link rel="icon" href="data:,">
     <style>
@@ -101,15 +101,20 @@
             }
         };
 
-        // Ejemplo funcional (CORS OK)
+        // Modelo de ejemplo con CORS y 200 OK
         const SAMPLE = 'https://raw.githubusercontent.com/IFCjs/test-ifc-files/main/01.ifc';
-        viewer.load(SAMPLE).catch(e=>loading.textContent='Error ejemplo');
+        viewer.load(SAMPLE).catch(() => {
+            loading.textContent = 'Ejemplo no disponible. Sube tu IFC.';
+        });
 
         input.onchange = e => {
             const f = e.target.files[0];
             if(!f) return;
             const url = URL.createObjectURL(f);
-            viewer.load(url).catch(()=>loading.textContent='IFC inválido');
+            viewer.load(url).catch(() => {
+                loading.textContent = 'IFC inválido';
+                loading.style.color = '#e74c3c';
+            });
         };
     </script>
 </body>
