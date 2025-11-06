@@ -13,7 +13,7 @@ const viewer = new IfcViewerAPI({
 
 // Le indicamos al visor dónde encontrar los archivos WASM necesarios.
 // Cuando se usa una CDN, debemos apuntar a la carpeta 'dist/' de la librería en la CDN.
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.0.217/dist/');
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc-viewer@latest/dist/');
 
 // Creamos una grilla y ejes para tener una referencia visual
 viewer.grid.setGrid();
@@ -26,8 +26,8 @@ async function loadIfcFromUrl(url) {
   await viewer.shadowDropper.renderShadow(model.modelID);
 }
 
-// URL del modelo de ejemplo (usando una CDN más estable)
-const sampleUrl = 'https://cdn.jsdelivr.net/gh/openBIMstandards/DataSetSchependomlaan/IFC%20Schependomlaan.ifc';
+// URL del modelo de ejemplo. La anterior estaba rota (404). Usamos una del repositorio oficial.
+const sampleUrl = 'https://ifcjs.github.io/ifcjs-crash-course/sample-apps/01/rac_advanced_sample_project.ifc';
 
 // Llamamos a la función para cargar el modelo
 loadIfcFromUrl(sampleUrl);
