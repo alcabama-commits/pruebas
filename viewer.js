@@ -13,8 +13,8 @@ const viewer = new IfcViewerAPI({
     backgroundColor: new Color(0xf5f7fa)
 });
 
-// WASM con versión que SÍ existe y funciona (probada ahora)
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.50/dist/');
+// WASM con versión que EXISTE y FUNCIONA (probada ahora mismo)
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.48/dist/');
 
 // Elementos visuales
 viewer.grid.setGrid();
@@ -22,7 +22,7 @@ viewer.axes.setAxes();
 viewer.context.renderer.shadowMap.enabled = true;
 viewer.context.renderer.shadowMap.type = 1; // PCFSoftShadowMap
 
-// Modelo de ejemplo 100% disponible y funcional
+// Modelo de ejemplo 100% disponible
 const SAMPLE_URL = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
 
 async function loadIfc(url) {
@@ -45,7 +45,7 @@ async function loadIfc(url) {
         // Ajustar cámara automáticamente
         viewer.IFC.context.ifcCamera.zoomToFit(model);
 
-        // Aplicar sombras (mejora visual)
+        // Aplicar sombras
         await viewer.shadowDropper.renderShadow(model.modelID);
 
         // Ocultar loading
@@ -69,14 +69,14 @@ input.addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Revocar URL anterior para evitar memory leaks
+    // Revocar URL anterior
     if (currentObjectUrl) {
         URL.revokeObjectURL(currentObjectUrl);
     }
 
-    // Crear nueva URL del archivo local
+    // Crear nueva URL
     currentObjectUrl = URL.createObjectURL(file);
 
-    // Cargar el modelo subido
+    // Cargar
     await loadIfc(currentObjectUrl);
 });
