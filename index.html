@@ -112,7 +112,7 @@
         <div class="loading">Cargando modelo 3D... (Espera 5-10 segundos)</div>
     </div>
 
-    <!-- Carga de Three.js como módulo -->
+    <!-- Importmap para Three.js -->
     <script type="importmap">
     {
       "imports": {
@@ -122,12 +122,12 @@
     }
     </script>
 
-    <!-- Todo el código en un solo módulo -->
+    <!-- Todo en un solo módulo -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // Cargar web-ifc como módulo (versión con ES module)
+        // Cargar web-ifc como módulo
         const { IfcAPI } = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/web-ifc-api.js');
 
         class IfcViewerAPI {
@@ -178,6 +178,7 @@
                     loadIfcUrl: async (url) => {
                         await this.ifc.Init();
                         const response = await fetch(url);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
                         const arrayBuffer = await response.arrayBuffer();
                         const modelID = this.ifc.OpenModel(new Uint8Array(arrayBuffer));
                         const mesh = await this.createMesh(modelID);
@@ -189,24 +190,30 @@
                 };
 
                 this.createMesh = async (modelID) => {
-                    const ids = this.ifc.GetAllItems(modelID);
                     const geometry = new THREE.BufferGeometry();
                     const positions = [];
                     const indices = [];
 
-                    for (const id of ids) {
-                        const geom = this.ifc.GetGeometry(modelID, id);
+                    // Usar GetAllLines para obtener geometría
+                    const lines = this.ifc.GetLineIDsWithType(modelID, WebIFC.IFCMESH);
+                    for (let i = 0; i < lines.size(); i++) {
+                        const lineID = lines.get(i);
+                        const geom = this.ifc.GetGeometry(modelID, lineID);
                         if (!geom) continue;
+
                         const vertexData = geom.GetVertexData();
                         const indexData = geom.GetIndexData();
                         const baseIndex = positions.length / 3;
-                        for (let i = 0; i < vertexData.length; i += 3) {
-                            positions.push(vertexData[i], vertexData[i + 1], vertexData[i + 2]);
+
+                        for (let j = 0; j < vertexData.length; j += 3) {
+                            positions.push(vertexData[j], vertexData[j + 1], vertexData[j + 2]);
                         }
-                        for (let i = 0; i < indexData.length; i++) {
-                            indices.push(indexData[i] + baseIndex);
+                        for (let j = 0; j < indexData.length; j++) {
+                            indices.push(indexData[j] + baseIndex);
                         }
                     }
+
+                    if (positions.length === 0) throw new Error("No geometry found");
 
                     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                     geometry.setIndex(indices);
@@ -246,12 +253,13 @@
         viewer.grid.setGrid();
         viewer.axes.setAxes();
 
-        const SAMPLE_URL = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
+        // Modelo de ejemplo con CORS habilitado
+        const SAMPLE_URL = 'https://raw.githubusercontent.com/IFCjs/test-ifc-files/main/SampleHouse.ifc';
 
         async function loadIfc(url) {
             try {
                 loadingText.style.display = 'block';
-                loadingText.textContent = 'Cargando...';
+                loadingText.textContent = 'Cargando modelo...';
                 loadingText.style.color = '#1a3d7c';
 
                 viewer.IFC.context.ifcModels.forEach(m => m.mesh && viewer.scene.remove(m.mesh));
@@ -261,14 +269,16 @@
 
                 loadingText.style.display = 'none';
             } catch (err) {
-                console.error(err);
-                loadingText.textContent = 'Error: archivo no válido';
+                console.error('Error cargando IFC:', err);
+                loadingText.textContent = 'Error: ' + (err.message || 'Archivo no válido');
                 loadingText.style.color = '#e74c3c';
             }
         }
 
+        // Cargar ejemplo
         loadIfc(SAMPLE_URL);
 
+        // Carga local (siempre funciona)
         let currentUrl = null;
         input.addEventListener('change', (e) => {
             const file = e.target.files[0];
