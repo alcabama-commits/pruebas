@@ -1,64 +1,52 @@
-// viewer.js - Versión completa con implementación básica de IfcViewerAPI para evitar dependencias CDN problemáticas
+// viewer.js - Funciona con la implementación global de arriba
 const container = document.getElementById('viewer-container');
 const input = document.getElementById('file-input');
 const loadingText = container.querySelector('.loading');
 
-// Instancia del visor (ahora definido en el inline script)
+// Instancia del visor
 const viewer = new IfcViewerAPI({
     container,
     backgroundColor: new THREE.Color(0xf5f7fa)
 });
 
-// Elementos visuales
+// Configuración visual
 viewer.grid.setGrid();
 viewer.axes.setAxes();
 
-// Modelo de ejemplo (URL básica)
+// Modelo de ejemplo
 const SAMPLE_URL = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
 
 async function loadIfc(url) {
     try {
         loadingText.style.display = 'block';
-        loadingText.textContent = 'Cargando modelo...';
+        loadingText.textContent = 'Cargando...';
         loadingText.style.color = '#1a3d7c';
 
-        // Limpiar modelos anteriores
-        viewer.IFC.context.ifcModels.forEach(model => {
-            if (model && model.mesh) {
-                viewer.IFC.context.scene.remove(model.mesh);
-            }
-        });
+        // Limpiar
+        viewer.IFC.context.ifcModels.forEach(m => m.mesh && viewer.IFC.context.scene.remove(m.mesh));
         viewer.IFC.context.ifcModels = [];
 
-        // Cargar el modelo
+        // Cargar
         const model = await viewer.IFC.loadIfcUrl(url);
-        
-        // Ocultar loading
+
         loadingText.style.display = 'none';
-        console.log('Modelo IFC cargado exitosamente:', model);
-    } catch (error) {
-        console.error('Error al cargar el IFC:', error);
-        loadingText.textContent = `Error: ${error.message || 'Archivo no válido'}`;
+        console.log('Modelo cargado:', model);
+    } catch (err) {
+        console.error(err);
+        loadingText.textContent = 'Error al cargar IFC';
         loadingText.style.color = '#e74c3c';
-        loadingText.style.display = 'block';
     }
 }
 
-// Cargar modelo de ejemplo al inicio
+// Cargar ejemplo
 loadIfc(SAMPLE_URL);
 
-// Manejo de carga local
-let currentObjectUrl = null;
-
-input.addEventListener('change', async (event) => {
-    const file = event.target.files[0];
+// Carga local
+let currentUrl = null;
+input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
     if (!file) return;
-
-    if (currentObjectUrl) {
-        URL.revokeObjectURL(currentObjectUrl);
-    }
-
-    currentObjectUrl = URL.createObjectURL(file);
-
-    await loadIfc(currentObjectUrl);
+    if (currentUrl) URL.revokeObjectURL(currentUrl);
+    currentUrl = URL.createObjectURL(file);
+    loadIfc(currentUrl);
 });
