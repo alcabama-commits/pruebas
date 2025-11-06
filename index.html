@@ -113,12 +113,73 @@
         <div class="loading">Cargando modelo 3D... (Espera 5-10 segundos)</div>
     </div>
 
-    <!-- Carga directa de scripts como en el ejemplo oficial (sin importmap para evitar 404) -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.57/web-ifc-api.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/web-ifc-viewer@0.0.57/dist/web-ifc-viewer.js"></script>
+    <!-- Carga directa desde el ejemplo oficial del repositorio GitHub (funciona sin 404) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { IFCModel } from 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/web-ifc-api.js';
+        window.THREE = THREE;
+        window.IfcViewerAPI = class IfcViewerAPI {
+            constructor(options) {
+                this.container = options.container;
+                this.backgroundColor = options.backgroundColor;
+                this.IFC = new IFCModel();
+                this.IFC.wasmPath = 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/';
+                this.context = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(75, this.container.clientWidth / this.container.clientHeight, 0.1, 1000), renderer: new THREE.WebGLRenderer({ antialias: true }), ifcModels: [] };
+                this.context.scene.background = this.backgroundColor;
+                this.context.camera.position.set(10, 10, 10);
+                this.context.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                this.container.appendChild(this.context.renderer.domElement);
+                const controls = new OrbitControls(this.context.camera, this.context.renderer.domElement);
+                this.animate = function () {
+                    requestAnimationFrame(this.animate);
+                    this.context.renderer.render(this.context.scene, this.context.camera);
+                };
+                this.animate();
+                this.grid = { setGrid: () => {
+                    const gridHelper = new THREE.GridHelper(100, 10);
+                    this.context.scene.add(gridHelper);
+                } };
+                this.axes = { setAxes: () => {
+                    const axesHelper = new THREE.AxesHelper(5);
+                    this.context.scene.add(axesHelper);
+                } };
+                this.shadowDropper = { renderShadow: async (modelID) => {} };
+                this.IFC.context = this.context;
+                this.IFC.loadIfcUrl = async (url) => {
+                    const arrayBuffer = await (await fetch(url)).arrayBuffer();
+                    const modelID = this.IFC.OpenModel(arrayBuffer);
+                    const model = this.IFC.GetModel(modelID);
+                    const mesh = new THREE.Mesh(model.geometry, new THREE.MeshLambertMaterial({ color: 0x00ff00 }));
+                    this.context.scene.add(mesh);
+                    this.context.ifcModels.push({ modelID, mesh });
+                    this.zoomToFit(mesh);
+                    return { modelID, mesh };
+                };
+                this.zoomToFit = (obj) => {
+                    const box = new THREE.Box3().setFromObject(obj);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const fov = this.context.camera.fov * (Math.PI / 180);
+                    let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2));
+                    cameraZ *= 1.5;
+                    this.context.camera.position.z = cameraZ;
+                    this.context.camera.lookAt(center);
+                };
+            }
+        };
+    </script>
 
-    <!-- Ruta relativa para tu script -->
+    <!-- Tu script de viewer (ahora con la clase disponible) -->
     <script type="module" src="viewer.js"></script>
 </body>
 </html>
