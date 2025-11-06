@@ -30,6 +30,27 @@
             color: #555;
             font-size: 1.1em;
         }
+        .controls {
+            text-align: center;
+            margin: 15px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background: #1a3d7c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        button:hover {
+            background: #0d2a5e;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
         .file-upload {
             text-align: center;
             margin: 25px 0;
@@ -94,7 +115,6 @@
         .info {
             text-align: center;
             margin-top: 15px;
-            color: #e74c3c;
             font-weight: 600;
         }
         @media (max-width: 768px) {
@@ -104,16 +124,23 @@
                 min-height: 400px;
             }
             h1 { font-size: 1.8em; }
+            button { font-size: 0.9em; padding: 8px 16px; }
         }
     </style>
 </head>
 <body>
     <h1>Visor IFC 3D Interactivo</h1>
-    <p>Sube tu archivo IFC. <strong>Debe contener geometría 3D (muros, losas, etc.)</strong>.</p>
+    <p>Sube tu archivo IFC. Usa el botón para centrar el modelo.</p>
+
+    <div class="controls">
+        <button id="fit-button">Enfocar Modelo</button>
+    </div>
+
     <div class="file-upload">
         <label for="file-input">Selecciona tu archivo .ifc</label>
         <input type="file" id="file-input" accept=".ifc">
     </div>
+
     <div id="viewer-container">
         <div class="loading">Listo. Sube tu archivo IFC.</div>
     </div>
@@ -139,6 +166,7 @@
         const input = document.getElementById('file-input');
         const loadingText = container.querySelector('.loading');
         const info = document.getElementById('info');
+        const fitButton = document.getElementById('fit-button');
 
         const viewer = new class {
             constructor() {
@@ -151,12 +179,12 @@
                 this.renderer.shadowMap.enabled = true;
                 container.appendChild(this.renderer.domElement);
 
-                const controls = new OrbitControls(this.camera, this.renderer.domElement);
-                controls.enableDamping = true;
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
 
                 const animate = () => {
                     requestAnimationFrame(animate);
-                    controls.update();
+                    this.controls.update();
                     this.renderer.render(this.scene, this.camera);
                 };
                 animate();
@@ -171,6 +199,7 @@
                 this.scene.add(axes);
 
                 this.models = [];
+                this.currentMesh = null;
             }
 
             async load(url) {
@@ -178,10 +207,12 @@
                 loadingText.style.display = 'block';
                 loadingText.textContent = 'Procesando IFC...';
                 loadingText.style.color = '#1a3d7c';
+                fitButton.disabled = true;
 
                 // Limpiar
                 this.models.forEach(m => this.scene.remove(m));
                 this.models = [];
+                this.currentMesh = null;
 
                 try {
                     await this.ifc.Init();
@@ -193,7 +224,7 @@
                         USE_FAST_BOOLS: true
                     });
 
-                    // Intentar extraer geometría de TODOS los tipos posibles
+                    // Extraer geometría
                     const types = [
                         this.ifc.IFCWALL, this.ifc.IFCWALLSTANDARDCASE,
                         this.ifc.IFCSLAB, this.ifc.IFCCOLUMN, this.ifc.IFCBEAM,
@@ -225,20 +256,19 @@
                         }
                     }
 
+                    // Último intento
                     if (totalVerts === 0) {
-                        // Último intento: todo lo que tenga geometría
                         const all = this.ifc.GetAllLines(modelID);
                         for (let i = 0; i < all.size(); i++) {
                             const id = all.get(i);
                             const geom = this.ifc.GetGeometry(modelID, id);
-                            if (!geom) continue;
+                            if (!geom || geom.GetVertexData().length < 9) continue;
                             const verts = geom.GetVertexData();
-                            if (verts.length < 9) continue;
+                            const inds = geom.GetIndexData();
                             const base = positions.length / 3;
                             for (let j = 0; j < verts.length; j += 3) {
                                 positions.push(verts[j], verts[j + 1], verts[j + 2]);
                             }
-                            const inds = geom.GetIndexData();
                             for (let j = 0; j < inds.length; j++) {
                                 indices.push(inds[j] + base);
                             }
@@ -246,7 +276,7 @@
                         }
                     }
 
-                    if (totalVerts === 0) throw new Error('No se encontró geometría 3D en el archivo IFC');
+                    if (totalVerts === 0) throw new Error('No se encontró geometría 3D');
 
                     const geometry = new THREE.BufferGeometry();
                     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -263,21 +293,27 @@
                     const mesh = new THREE.Mesh(geometry, material);
                     this.scene.add(mesh);
                     this.models.push(mesh);
-                    this.fitCamera(mesh);
+                    this.currentMesh = mesh;
 
                     loadingText.style.display = 'none';
                     info.textContent = `Modelo cargado: ${totalVerts.toLocaleString()} vértices`;
                     info.style.color = '#27ae60';
+                    fitButton.disabled = false;
+
+                    // Enfocar automáticamente al cargar
+                    this.fitCamera();
                 } catch (err) {
                     loadingText.style.display = 'none';
                     info.textContent = `Error: ${err.message}`;
                     info.style.color = '#e74c3c';
+                    fitButton.disabled = false;
                     console.error(err);
                 }
             }
 
-            fitCamera(obj) {
-                const box = new THREE.Box3().setFromObject(obj);
+            fitCamera() {
+                if (!this.currentMesh) return;
+                const box = new THREE.Box3().setFromObject(this.currentMesh);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
                 const max = Math.max(size.x, size.y, size.z) || 1;
@@ -287,8 +323,14 @@
 
                 this.camera.position.copy(center).add(new THREE.Vector3(dist, dist, dist).normalize().multiplyScalar(dist));
                 this.camera.lookAt(center);
+                this.controls.target.copy(center);
             }
         };
+
+        // Botón de enfocar
+        fitButton.addEventListener('click', () => {
+            viewer.fitCamera();
+        });
 
         // Carga local
         let currentUrl = null;
@@ -302,6 +344,7 @@
 
         // Mensaje inicial
         loadingText.textContent = 'Listo. Sube tu archivo IFC.';
+        fitButton.disabled = true;
     </script>
 </body>
 </html>
