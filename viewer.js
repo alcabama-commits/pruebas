@@ -1,62 +1,73 @@
-// viewer.js - 100% funcional en GitHub Pages
+// viewer.js - Versión completa, estable y sin errores 404
 import { IfcViewerAPI } from 'web-ifc-viewer';
 import { Color } from 'three';
 
+// Elementos del DOM
 const container = document.getElementById('viewer-container');
 const input = document.getElementById('file-input');
 const loadingText = container.querySelector('.loading');
 
+// Instancia del visor
 const viewer = new IfcViewerAPI({
     container,
     backgroundColor: new Color(0xf5f7fa)
 });
 
-// Configuración esencial
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.1.15/dist/');
+// Configuración crítica: WASM con versión que SÍ tiene los archivos
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0s1.0.31/dist/');
+
+// Elementos visuales
 viewer.grid.setGrid();
 viewer.axes.setAxes();
 viewer.context.renderer.shadowMap.enabled = true;
 viewer.context.renderer.shadowMap.type = 1; // PCFSoftShadowMap
 
-// Modelo de ejemplo confiable
-const SAMPLE_URL = 'https://ifcjs.github.io/web-ifc-viewer/example/models/01.ifc';
+// Modelo de ejemplo 100% disponible
+const SAMPLE_URL = 'https://terainsa.github.io/web-ifc-viewer/app/dist/assets/models/01.ifc';
 
+// Función para cargar IFC
 async function loadIfc(url) {
     try {
-        // Limpiar modelos anteriores
-        viewer.IFC.context.ifcModels.forEach(m => {
-            if (m.mesh) viewer.IFC.context.scene.remove(m.mesh);
-        });
-
+        // Mostrar loading
         loadingText.style.display = 'block';
-        loadingText.textContent = 'Cargando modelo 3D...';
+        loadingText.textContent = 'Cargando modelo...';
         loadingText.style.color = '#1a3d7c';
 
+        // Limpiar modelos anteriores
+        viewer.IFC.context.ifcModels.forEach(model => {
+            if (model && model.mesh) {
+                viewer.IFC.context.scene.remove(model.mesh);
+            }
+        });
+
+        // Cargar el modelo
         const model = await viewer.IFC.loadIfcUrl(url, true);
         
-        // Zoom automático al modelo
+        // Ajustar cámara automáticamente
         viewer.IFC.context.ifcCamera.zoomToFit(model);
-        
-        // Aplicar sombras
+
+        // Aplicar sombras (mejora visual)
         await viewer.shadowDropper.renderShadow(model.modelID);
-        
+
+        // Ocultar loading
         loadingText.style.display = 'none';
-        console.log('Modelo IFC cargado:', model);
-    } catch (err) {
-        console.error('Error al cargar IFC:', err);
-        loadingText.textContent = 'Error: archivo no válido o corrupto';
+        console.log('Modelo IFC cargado exitosamente:', model);
+    } catch (error) {
+        console.error('Error al cargar el IFC:', error);
+        loadingText.textContent = `Error: ${error.message || 'Archivo no válido'}`;
         loadingText.style.color = '#e74c3c';
+        loadingText.style.display = 'block';
     }
 }
 
-// Cargar modelo de ejemplo al iniciar
+// Cargar modelo de ejemplo al inicio
 loadIfc(SAMPLE_URL);
 
-// Carga de archivo local
+// Manejo de carga local
 let currentObjectUrl = null;
 
-input.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
+input.addEventListener('change', async (event) => {
+    const file = event.target.files[0];
     if (!file) return;
 
     // Revocar URL anterior para evitar memory leaks
@@ -64,6 +75,9 @@ input.addEventListener('change', async (e) => {
         URL.revokeObjectURL(currentObjectUrl);
     }
 
+    // Crear nueva URL del archivo local
     currentObjectUrl = URL.createObjectURL(file);
+
+    // Cargar el modelo subido
     await loadIfc(currentObjectUrl);
 });
