@@ -13,8 +13,8 @@ const viewer = new IfcViewerAPI({
     backgroundColor: new Color(0xf5f7fa)
 });
 
-// WASM con versión que EXISTE y FUNCIONA (probada ahora mismo)
-viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.48/dist/');
+// WASM con versión compatible (0.0.70, la más reciente)
+viewer.IFC.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.70/dist/');
 
 // Elementos visuales
 viewer.grid.setGrid();
