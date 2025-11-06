@@ -113,19 +113,12 @@
         <div class="loading">Cargando modelo 3D... (Espera 5-10 segundos)</div>
     </div>
 
-    <!-- Importmap con versión 1.0.218 (la única estable en jsDelivr) -->
-    <script type="importmap">
-    {
-      "imports": {
-        "web-ifc-viewer": "https://cdn.jsdelivr.net/npm/web-ifc-viewer@1.0.218/dist/web-ifc-viewer.es.js",
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/examples/jsm/libs/stats.module.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/stats.module.js",
-        "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
-      }
-    }
-    </script>
+    <!-- Carga directa de scripts como en el ejemplo oficial (sin importmap para evitar 404) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web-ifc@0.0.57/web-ifc-api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web-ifc-viewer@0.0.57/dist/web-ifc-viewer.js"></script>
 
-    <!-- Ruta relativa (funciona en GitHub Pages) -->
+    <!-- Ruta relativa para tu script -->
     <script type="module" src="viewer.js"></script>
 </body>
 </html>
