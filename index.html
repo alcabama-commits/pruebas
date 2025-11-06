@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visor IFC 3D</title>
-    <!-- Evita error 404 del favicon -->
     <link rel="icon" href="data:,">
     <style>
         * { box-sizing: border-box; }
@@ -104,16 +103,16 @@
 </head>
 <body>
     <h1>Visor IFC 3D Interactivo</h1>
-    <p>Se carga un modelo de ejemplo automáticamente. También puedes subir tu propio archivo IFC.</p>
+    <p>Sube tu modelo IFC. El ejemplo se carga solo si está disponible.</p>
     <div class="file-upload">
-        <label for="file-input">Sube tu modelo IFC (.ifc, .ifcZIP, .ifcXML)</label>
-        <input type="file" id="file-input" accept=".ifc,.ifcZIP,.ifcXML">
+        <label for="file-input">Sube tu modelo IFC (.ifc)</label>
+        <input type="file" id="file-input" accept=".ifc">
     </div>
     <div id="viewer-container">
-        <div class="loading">Cargando modelo 3D... (Espera 5-10 segundos)</div>
+        <div class="loading">Listo. Sube tu IFC para ver el modelo.</div>
     </div>
 
-    <!-- Importmap para Three.js -->
+    <!-- Importmap -->
     <script type="importmap">
     {
       "imports": {
@@ -123,13 +122,11 @@
     }
     </script>
 
-    <!-- Todo en un solo módulo -->
+    <!-- Código principal -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        // Cargar web-ifc como módulo
-        const { IfcAPI, IFCMESH } = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/web-ifc-api.js');
+        const { IfcAPI } = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/web-ifc-api.js');
 
         class IfcViewerAPI {
             constructor({ container, backgroundColor }) {
@@ -160,7 +157,6 @@
                 };
                 animate();
 
-                // Grilla y ejes
                 this.grid = {
                     setGrid: () => {
                         const grid = new THREE.GridHelper(50, 50, 0x888888, 0x444444);
@@ -174,7 +170,6 @@
                     }
                 };
 
-                // Carga de IFC
                 this.IFC = {
                     context: { scene: this.scene, ifcModels: [] },
                     loadIfcUrl: async (url) => {
@@ -182,8 +177,9 @@
                         const response = await fetch(url);
                         if (!response.ok) throw new Error(`HTTP ${response.status}`);
                         const arrayBuffer = await response.arrayBuffer();
-                        const modelID = this.ifc.OpenModel(new Uint8Array(arrayBuffer));
+                        const modelID = this.ifc.OpenModel(new Uint8Array(arrayBuffer), { COORDINATE_TO_ORIGIN: true });
                         const mesh = await this.createMesh(modelID);
+                        if (!mesh) throw new Error("No geometry found");
                         this.scene.add(mesh);
                         this.IFC.context.ifcModels.push({ modelID, mesh });
                         this.zoomToFit(mesh);
@@ -191,41 +187,62 @@
                     }
                 };
 
-                // Construcción de malla
                 this.createMesh = async (modelID) => {
                     const geometry = new THREE.BufferGeometry();
                     const positions = [];
                     const indices = [];
 
-                    const lines = this.ifc.GetLineIDsWithType(modelID, IFCMESH);
-                    for (let i = 0; i < lines.size(); i++) {
-                        const lineID = lines.get(i);
-                        const geom = this.ifc.GetGeometry(modelID, lineID);
-                        if (!geom) continue;
+                    // Usar todos los tipos de geometría posibles
+                    const types = [
+                        this.ifc.IFCWALLSTANDARDCASE,
+                        this.ifc.IFCWALL,
+                        this.ifc.IFCSLAB,
+                        this.ifc.IFCCOLUMN,
+                        this.ifc.IFCBEAM,
+                        this.ifc.IFCROOF,
+                        this.ifc.IFCDOOR,
+                        this.ifc.IFCWINDOW,
+                        this.ifc.IFCSPACE
+                    ];
 
-                        const vertexData = geom.GetVertexData();
-                        const indexData = geom.GetIndexData();
-                        const baseIndex = positions.length / 3;
+                    let totalVertices = 0;
 
-                        for (let j = 0; j < vertexData.length; j += 3) {
-                            positions.push(vertexData[j], vertexData[j + 1], vertexData[j + 2]);
-                        }
-                        for (let j = 0; j < indexData.length; j++) {
-                            indices.push(indexData[j] + baseIndex);
+                    for (const type of types) {
+                        const ids = this.ifc.GetLineIDsWithType(modelID, type);
+                        for (let i = 0; i < ids.size(); i++) {
+                            const id = ids.get(i);
+                            const geom = this.ifc.GetGeometry(modelID, id);
+                            if (!geom) continue;
+
+                            const verts = geom.GetVertexData();
+                            const inds = geom.GetIndexData();
+                            const base = positions.length / 3;
+
+                            for (let j = 0; j < verts.length; j += 3) {
+                                positions.push(verts[j], verts[j + 1], verts[j + 2]);
+                            }
+                            for (let j = 0; j < inds.length; j++) {
+                                indices.push(inds[j] + base);
+                            }
+                            totalVertices += verts.length / 3;
                         }
                     }
 
-                    if (positions.length === 0) throw new Error("No geometry found");
+                    if (totalVertices === 0) return null;
 
                     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                     geometry.setIndex(indices);
                     geometry.computeVertexNormals();
 
-                    const material = new THREE.MeshLambertMaterial({ color: 0x6699ff, side: THREE.DoubleSide });
+                    const material = new THREE.MeshLambertMaterial({ 
+                        color: 0x6699ff, 
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.9
+                    });
                     return new THREE.Mesh(geometry, material);
                 };
 
-                // Ajuste de cámara
                 this.zoomToFit = (obj) => {
                     const box = new THREE.Box3().setFromObject(obj);
                     const center = box.getCenter(new THREE.Vector3());
@@ -238,8 +255,6 @@
                     this.camera.lookAt(center);
                     controls.target.copy(center);
                 };
-
-                this.shadowDropper = { renderShadow: async () => {} };
             }
         }
 
@@ -256,16 +271,13 @@
         viewer.grid.setGrid();
         viewer.axes.setAxes();
 
-        // Modelo de ejemplo con CORS habilitado y 200 OK
-        const SAMPLE_URL = 'https://raw.githubusercontent.com/IFCjs/test-ifc-files/main/01.ifc';
-
+        // Solo carga local (ejemplo remoto eliminado)
         async function loadIfc(url) {
             try {
                 loadingText.style.display = 'block';
-                loadingText.textContent = 'Cargando modelo...';
+                loadingText.textContent = 'Cargando tu modelo...';
                 loadingText.style.color = '#1a3d7c';
 
-                // Limpiar modelos anteriores
                 viewer.IFC.context.ifcModels.forEach(m => m.mesh && viewer.scene.remove(m.mesh));
                 viewer.IFC.context.ifcModels = [];
 
@@ -273,14 +285,13 @@
 
                 loadingText.style.display = 'none';
             } catch (err) {
-                console.error('Error cargando IFC:', err);
-                loadingText.textContent = 'Error: ' + (err.message || 'Archivo no válido');
+                console.error('Error:', err);
+                loadingText.textContent = 'Error: ' + (err.message.includes('404') ? 'Archivo no encontrado' : 
+                                              err.message.includes('geometry') ? 'IFC sin geometría válida' : 
+                                              'Formato no soportado');
                 loadingText.style.color = '#e74c3c';
             }
         }
-
-        // Cargar modelo de ejemplo
-        loadIfc(SAMPLE_URL);
 
         // Carga de archivo local
         let currentUrl = null;
@@ -291,6 +302,9 @@
             currentUrl = URL.createObjectURL(file);
             loadIfc(currentUrl);
         });
+
+        // Mensaje inicial
+        loadingText.textContent = 'Listo. Sube tu archivo IFC.';
     </script>
 </body>
 </html>
