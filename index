@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor IFC 3D</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            color: #2c3e50;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: #1a3d7c;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        p {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            color: #555;
+            font-size: 1.1em;
+        }
+        .controls {
+            text-align: center;
+            margin: 15px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background: #1a3d7c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        button:hover {
+            background: #0d2a5e;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .file-upload {
+            text-align: center;
+            margin: 25px 0;
+        }
+        .file-upload label {
+            font-weight: 600;
+            color: #1a3d7c;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        input[type="file"] {
+            padding: 12px 16px;
+            border: 2px dashed #1a3d7c;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+            width: 100%;
+            max-width: 400px;
+            display: inline-block;
+        }
+        input[type="file"]:hover {
+            background: #f0f4ff;
+            border-color: #0d2a5e;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(13, 42, 94, 0.15);
+        }
+        #viewer-container {
+            position: relative;
+            width: 90vw;
+            max-width: 1200px;
+            height: 70vh;
+            min-height: 500px;
+            margin: 30px auto;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.18);
+            background: #fff;
+            transition: all 0.3s ease;
+        }
+        #viewer-container:hover {
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22);
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2em;
+            color: #1a3d7c;
+            font-weight: 600;
+            z-index: 10;
+            background: rgba(255,255,255,0.9);
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .info {
+            text-align: center;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+        @media (max-width: 768px) {
+            #viewer-container {
+                width: 95vw;
+                height: 60vh;
+                min-height: 400px;
+            }
+            h1 { font-size: 1.8em; }
+            button { font-size: 0.9em; padding: 8px 16px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Visor IFC 3D Interactivo</h1>
+    <p>Sube tu archivo IFC. Usa el botón para centrar el modelo.</p>
+
+    <div class="controls">
+        <button id="fit-button">Enfocar Modelo</button>
+    </div>
+
+    <div class="file-upload">
+        <label for="file-input">Selecciona tu archivo .ifc</label>
+        <input type="file" id="file-input" accept=".ifc">
+    </div>
+
+    <div id="viewer-container">
+        <div class="loading">Listo. Sube tu archivo IFC.</div>
+    </div>
+    <div class="info" id="info"></div>
+
+    <!-- Importmap -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+    </script>
+
+    <!-- Código principal -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        const { IfcAPI } = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/web-ifc-api.js');
+
+        const container = document.getElementById('viewer-container');
+        const input = document.getElementById('file-input');
+        const loadingText = container.querySelector('.loading');
+        const info = document.getElementById('info');
+        const fitButton = document.getElementById('fit-button');
+
+        const viewer = new class {
+            constructor() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0xf5f7fa);
+                this.camera = new THREE.PerspectiveCamera(75, container.clientWidth/container.clientHeight, 0.1, 1000);
+                this.camera.position.set(10, 10, 10);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.shadowMap.enabled = true;
+                container.appendChild(this.renderer.domElement);
+
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    this.controls.update();
+                    this.renderer.render(this.scene, this.camera);
+                };
+                animate();
+
+                this.ifc = new IfcAPI();
+                this.ifc.SetWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.51/');
+
+                // Grilla y ejes
+                const grid = new THREE.GridHelper(50, 50, 0x888888, 0x444444);
+                this.scene.add(grid);
+                const axes = new THREE.AxesHelper(10);
+                this.scene.add(axes);
+
+                this.models = [];
+                this.currentMesh = null;
+            }
+
+            async load(url) {
+                info.textContent = '';
+                loadingText.style.display = 'block';
+                loadingText.textContent = 'Procesando IFC...';
+                loadingText.style.color = '#1a3d7c';
+                fitButton.disabled = true;
+
+                // Limpiar
+                this.models.forEach(m => this.scene.remove(m));
+                this.models = [];
+                this.currentMesh = null;
+
+                try {
+                    await this.ifc.Init();
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('Archivo no encontrado');
+                    const buffer = await response.arrayBuffer();
+                    const modelID = this.ifc.OpenModel(new Uint8Array(buffer), {
+                        COORDINATE_TO_ORIGIN: true,
+                        USE_FAST_BOOLS: true
+                    });
+
+                    // Extraer geometría
+                    const types = [
+                        this.ifc.IFCWALL, this.ifc.IFCWALLSTANDARDCASE,
+                        this.ifc.IFCSLAB, this.ifc.IFCCOLUMN, this.ifc.IFCBEAM,
+                        this.ifc.IFCROOF, this.ifc.IFCDOOR, this.ifc.IFCWINDOW,
+                        this.ifc.IFCSPACE, this.ifc.IFCBUILDINGELEMENTPROXY
+                    ];
+
+                    let totalVerts = 0;
+                    const positions = [], indices = [];
+
+                    for (const type of types) {
+                        const ids = this.ifc.GetLineIDsWithType(modelID, type);
+                        for (let i = 0; i < ids.size(); i++) {
+                            const id = ids.get(i);
+                            const geom = this.ifc.GetGeometry(modelID, id);
+                            if (!geom) continue;
+
+                            const verts = geom.GetVertexData();
+                            const inds = geom.GetIndexData();
+                            const base = positions.length / 3;
+
+                            for (let j = 0; j < verts.length; j += 3) {
+                                positions.push(verts[j], verts[j + 1], verts[j + 2]);
+                            }
+                            for (let j = 0; j < inds.length; j++) {
+                                indices.push(inds[j] + base);
+                            }
+                            totalVerts += verts.length / 3;
+                        }
+                    }
+
+                    // Último intento
+                    if (totalVerts === 0) {
+                        const all = this.ifc.GetAllLines(modelID);
+                        for (let i = 0; i < all.size(); i++) {
+                            const id = all.get(i);
+                            const geom = this.ifc.GetGeometry(modelID, id);
+                            if (!geom || geom.GetVertexData().length < 9) continue;
+                            const verts = geom.GetVertexData();
+                            const inds = geom.GetIndexData();
+                            const base = positions.length / 3;
+                            for (let j = 0; j < verts.length; j += 3) {
+                                positions.push(verts[j], verts[j + 1], verts[j + 2]);
+                            }
+                            for (let j = 0; j < inds.length; j++) {
+                                indices.push(inds[j] + base);
+                            }
+                            totalVerts += verts.length / 3;
+                        }
+                    }
+
+                    if (totalVerts === 0) throw new Error('No se encontró geometría 3D');
+
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                    geometry.setIndex(indices);
+                    geometry.computeVertexNormals();
+
+                    const material = new THREE.MeshLambertMaterial({
+                        color: 0x6699ff,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+
+                    const mesh = new THREE.Mesh(geometry, material);
+                    this.scene.add(mesh);
+                    this.models.push(mesh);
+                    this.currentMesh = mesh;
+
+                    loadingText.style.display = 'none';
+                    info.textContent = `Modelo cargado: ${totalVerts.toLocaleString()} vértices`;
+                    info.style.color = '#27ae60';
+                    fitButton.disabled = false;
+
+                    // Enfocar automáticamente al cargar
+                    this.fitCamera();
+                } catch (err) {
+                    loadingText.style.display = 'none';
+                    info.textContent = `Error: ${err.message}`;
+                    info.style.color = '#e74c3c';
+                    fitButton.disabled = false;
+                    console.error(err);
+                }
+            }
+
+            fitCamera() {
+                if (!this.currentMesh) return;
+                const box = new THREE.Box3().setFromObject(this.currentMesh);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const max = Math.max(size.x, size.y, size.z) || 1;
+                const fov = this.camera.fov * Math.PI / 180;
+                let dist = max / 2 / Math.tan(fov / 2) * 1.5;
+                dist = Math.max(dist, 1);
+
+                this.camera.position.copy(center).add(new THREE.Vector3(dist, dist, dist).normalize().multiplyScalar(dist));
+                this.camera.lookAt(center);
+                this.controls.target.copy(center);
+            }
+        };
+
+        // Botón de enfocar
+        fitButton.addEventListener('click', () => {
+            viewer.fitCamera();
+        });
+
+        // Carga local
+        let currentUrl = null;
+        input.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (currentUrl) URL.revokeObjectURL(currentUrl);
+            currentUrl = URL.createObjectURL(file);
+            await viewer.load(currentUrl);
+        });
+
+        // --- Carga automática del modelo local ---
+        const modelUrl = './19_ZI_ALL_Estructura_Torre_Parqueaderos.ifc';
+        viewer.load(modelUrl);
+        // --- Fin de la carga automática ---
+    </script>
+
+</body>
+</html>
