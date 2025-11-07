@@ -134,6 +134,7 @@
 
     <div class="controls">
         <button id="fit-button">Enfocar Modelo</button>
+        <button id="reload-repo">Recargar Modelo del Repo</button>
     </div>
 
     <div class="file-upload">
@@ -339,6 +340,16 @@
             viewer.fitCamera();
         });
 
+        // Botón de recargar modelo del repo
+        document.getElementById('reload-repo').addEventListener('click', () => {
+            const modelUrl = '/pruebas/model/19_ZI_ALL_Estructura_Torre_Parqueaderos.ifc';
+            viewer.load(modelUrl).catch(err => {
+                console.error("Error recargando modelo:", err);
+                info.textContent = "No se pudo recargar el modelo del repositorio.";
+                info.style.color = "#e74c3c";
+            });
+        });
+
         // Carga local
         let currentUrl = null;
         input.addEventListener('change', async (e) => {
@@ -349,10 +360,14 @@
             await viewer.load(currentUrl);
         });
 
-        // --- Carga automática del modelo local ---
-        const modelUrl = './model/19_ZI_ALL_Estructura_Torre_Parqueaderos.ifc';
-        viewer.load(modelUrl);
-        // --- Fin de la carga automática ---
+        // --- Carga automática del modelo del repositorio ---
+        const modelUrl = '/pruebas/model/19_ZI_ALL_Estructura_Torre_Parqueaderos.ifc';
+        viewer.load(modelUrl).catch(err => {
+            console.error("Error cargando modelo:", err);
+            info.textContent = "No se encontró el modelo. Sube tu IFC.";
+            info.style.color = "#e74c3c";
+        });
+        // --- Fin ---
     </script>
 
 </body>
